@@ -39,9 +39,11 @@ static void read_from_r2a(volatile UBYTE* clock_port_reg[4], UBYTE *dst, UBYTE o
 
 	set_cp_address(clock_port_reg, R2A_BASE + offset);
 
+	volatile UBYTE *p = clock_port_reg[REG_SRAM];
+
 	for (int i = 0; i < length; i++)
 	{
-		*dst++ = *(clock_port_reg[REG_SRAM]);
+		*dst++ = *p;
 		offset++;
 		if (offset == 0)
 			set_cp_address(clock_port_reg, R2A_BASE);
@@ -76,9 +78,11 @@ static void append_a2r_packet(volatile UBYTE* clock_port_reg[4], struct ComAreaP
 
 	set_cp_address(clock_port_reg, A2R_BASE + index);
 
+	volatile UBYTE *p = clock_port_reg[REG_SRAM];
+
 	for (int i = 0; i < sizeof(hdr); i++)
 	{
-		*(clock_port_reg[REG_SRAM]) = ((UBYTE *)&hdr)[i];
+		*p = ((UBYTE *)&hdr)[i];
 		index++;
 		if (index == 0)
 			set_cp_address(clock_port_reg, A2R_BASE);
@@ -86,7 +90,7 @@ static void append_a2r_packet(volatile UBYTE* clock_port_reg[4], struct ComAreaP
 
 	for (int i = 0; i < length; i++)
 	{
-		*(clock_port_reg[REG_SRAM]) = *data++;
+		*p = *data++;
 		index++;
 		if (index == 0)
 			set_cp_address(clock_port_reg, A2R_BASE);

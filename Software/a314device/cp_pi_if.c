@@ -34,8 +34,10 @@ void a314base_write_mem(__reg("a6") struct A314Device *dev, __reg("d0") ULONG ad
 
 	set_cp_address(dev->clock_port_reg, address);
 
+	volatile UBYTE *p = clock_port_reg[REG_SRAM];
+
 	for (int i = 0; i < length; i++)
-		*(dev->clock_port_reg[REG_SRAM]) = *src++;
+		*p = *src++;
 
 	Enable();
 }
@@ -51,8 +53,10 @@ void a314base_read_mem(__reg("a6") struct A314Device *dev, __reg("a0") UBYTE *ds
 
 	set_cp_address(dev->clock_port_reg, address);
 
+	volatile UBYTE *p = clock_port_reg[REG_SRAM];
+
 	for (int i = 0; i < length; i++)
-		*dst++ = *(dev->clock_port_reg[REG_SRAM]);
+		*dst++ = *p;
 
 	Enable();
 }
