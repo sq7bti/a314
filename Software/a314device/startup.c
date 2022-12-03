@@ -67,6 +67,11 @@ static void init_message_port(struct A314Device *dev)
 
 static void add_interrupt_handler(struct A314Device *dev)
 {
+	dev->clock_port_reg[REG_SRAM] = (volatile UBYTE*)0x00d84001;
+	dev->clock_port_reg[REG_IRQ] = (volatile UBYTE*)0x00d84005;
+	dev->clock_port_reg[REG_ADDR_LO] = (volatile UBYTE*)0x00d84009;
+	dev->clock_port_reg[REG_ADDR_HI] = (volatile UBYTE*)0x00d8400d;
+
 	memset(&dev->exter_interrupt, 0, sizeof(struct Interrupt));
 	dev->exter_interrupt.is_Node.ln_Type = NT_INTERRUPT;
 	dev->exter_interrupt.is_Node.ln_Pri = 0;
@@ -119,20 +124,20 @@ fail1:
 	return success;
 }
 
-static int probe_interface()
+static int probe_interface(UBYTE* clock_port_reg[4])
 {
 	int found = FALSE;
 
 	Disable();
-	*CP_REG_PTR(REG_ADDR_HI) = CAP_BASE >> 8;
-	*CP_REG_PTR(REG_ADDR_LO) = 6;
-	*CP_REG_PTR(REG_SRAM) = 0x99;
-	*CP_REG_PTR(REG_SRAM) = 0xbd;
-	*CP_REG_PTR(REG_ADDR_LO) = 7;
-	if (*CP_REG_PTR(REG_SRAM) == 0xbd)
+	*(clock_port_reg[REG_ADDR_HI]) = CAP_BASE >> 8;
+	*(clock_port_reg[REG_ADDR_LO]) = 6;
+	*(clock_port_reg[REG_SRAM]) = 0x99;
+	*(clock_port_reg[REG_SRAM]) = 0xbd;
+	*(clock_port_reg[REG_ADDR_LO]) = 7;
+	if (*(clock_port_reg[REG_SRAM]) == 0xbd)
 	{
-		*CP_REG_PTR(REG_ADDR_LO) = 6;
-		if (*CP_REG_PTR(REG_SRAM) == 0x99)
+		*(clock_port_reg[REG_ADDR_LO]) = 6;
+		if (*(clock_port_reg[REG_SRAM]) == 0x99)
 			found = TRUE;
 	}
 	Enable();
@@ -140,11 +145,11 @@ static int probe_interface()
 	return found;
 }
 
-static int probe_interface_retries()
+static int probe_interface_retries(UBYTE* clock_port_reg[4])
 {
 	for (int i = 7; i >= 0; i--)
 	{
-		if (probe_interface())
+		if (probe_interface(clock_port_reg))
 			return TRUE;
 
 		if (i == 0 || !delay_1s())
@@ -155,15 +160,20 @@ static int probe_interface_retries()
 
 BOOL task_start(struct A314Device *dev)
 {
-	if (!probe_interface_retries())
+	dev->clock_port_reg[REG_SRAM] = (volatile UBYTE*)(CLOCK_PORT_ADDRESS + (CLOCK_PORT_STRIDE * REG_SRAM));
+	dev->clock_port_reg[REG_IRQ] = (volatile UBYTE*)(CLOCK_PORT_ADDRESS + (CLOCK_PORT_STRIDE * REG_IRQ));
+	dev->clock_port_reg[REG_ADDR_LO] = (volatile UBYTE*)(CLOCK_PORT_ADDRESS + (CLOCK_PORT_STRIDE * REG_ADDR_LO));
+	dev->clock_port_reg[REG_ADDR_HI] = (volatile UBYTE*)(CLOCK_PORT_ADDRESS + (CLOCK_PORT_STRIDE * REG_ADDR_HI));
+
+	if (!probe_interface_retries(dev->clock_port_reg))
 		return FALSE;
 
 	memset(&dev->cap, 0, sizeof(dev->cap));
 
 	Disable();
-	set_cp_address(CAP_BASE);
+	set_cp_address(dev->clock_port_reg, CAP_BASE);
 	for (int i = 0; i < 4; i++)
-		*CP_REG_PTR(REG_SRAM) = 0;
+		*(dev->clock_port_reg[REG_SRAM]) = 0;
 	Enable();
 
 	init_memory_allocator(dev);
@@ -177,7 +187,7 @@ BOOL task_start(struct A314Device *dev)
 	init_message_port(dev);
 	init_sockets(dev);
 
-	clear_cp_irq();
+	clear_cp_irq(dev->clock_port_reg);
 
 	add_interrupt_handler(dev);
 
@@ -189,16 +199,16 @@ BOOL task_start(struct A314Device *dev)
 	// and notify a314d that the Amiga has been reset/restarted.
 
 	Disable();
-	set_cp_address(CAP_BASE + 4);
-	UBYTE restart_counter = *CP_REG_PTR(REG_SRAM);
+	set_cp_address(dev->clock_port_reg, CAP_BASE + 4);
+	UBYTE restart_counter = *(dev->clock_port_reg[REG_SRAM]);
 
-	set_cp_address(CAP_BASE + 4);
-	*CP_REG_PTR(REG_SRAM) = restart_counter + 1;
-	*CP_REG_PTR(REG_SRAM) = 0xa3;
-	*CP_REG_PTR(REG_SRAM) = 0x14;
+	set_cp_address(dev->clock_port_reg, CAP_BASE + 4);
+	*(dev->clock_port_reg[REG_SRAM]) = restart_counter + 1;
+	*(dev->clock_port_reg[REG_SRAM]) = 0xa3;
+	*(dev->clock_port_reg[REG_SRAM]) = 0x14;
 	Enable();
 
-	set_pi_irq();
+	set_pi_irq(dev->clock_port_reg);
 
 	return TRUE;
 }

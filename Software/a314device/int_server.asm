@@ -1,14 +1,12 @@
 	XDEF	_IntServer
 	CODE
 
-CLOCK_PORT	equ	$d80000
-
 SIGB_INT	equ	14
 SIGF_INT	equ	(1 << SIGB_INT)
 
-		; a1 points to driver task
-_IntServer:	lea.l	CLOCK_PORT + 7,a5
-
+		; a1 points to device and driver task is now the first member of that struct
+_IntServer:
+		move.l	180(a1),a5	; at offset 224 is cp_reg[1] - REG_IRQ 224 - 44 (task offset)
 		move.b	(a5),d0		; read cp irq
 		bne.b	should_signal
 

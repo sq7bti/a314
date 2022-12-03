@@ -10,6 +10,9 @@
 
 #include "protocol.h"
 
+/* DO NOT reshuffle this struct as the int_server depends on
+   the offset between Task task and clock_port_reg */
+
 struct A314Device
 {
     struct Library lib;
@@ -19,7 +22,7 @@ struct A314Device
 
     void *first_chunk;
 
-    struct Task task;
+    struct Task task;                 // offset 44
     struct MsgPort task_mp;
 
     struct Interrupt exter_interrupt;
@@ -32,6 +35,8 @@ struct A314Device
     struct ComAreaPtrs cap;
 
     UBYTE next_stream_id;
+
+    volatile UBYTE* clock_port_reg[4];  // offset 220, 224, 228, 232
 };
 
 extern char device_name[];
