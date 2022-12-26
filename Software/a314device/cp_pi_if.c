@@ -11,7 +11,12 @@
 #include "device.h"
 #include "protocol.h"
 
-#define CLOCK_PORT_ADDRESS	0xd80001
+#define CLOCK_PORT_ADDRESS	0xd90001
+//#define CLOCK_PORT_ADDRESS	0xd84001
+//#define CLOCK_PORT_ADDRESS	0xd88001
+//#define CLOCK_PORT_ADDRESS	0xd8C001
+//#define CLOCK_PORT_ADDRESS	0xd90001
+#define CLOCK_PORT_STRIDE   4
 
 #define REG_SRAM	0
 #define REG_IRQ		1
@@ -23,7 +28,7 @@
 #define REG_IRQ_PI	0x02
 #define REG_IRQ_CP	0x01
 
-#define CP_REG_PTR(reg) ((volatile UBYTE *)(CLOCK_PORT_ADDRESS + (reg << 2)))
+#define CP_REG_PTR(reg) ((volatile UBYTE *)(dev->clock_port_reg[reg]))
 
 #define SysBase (*(struct ExecBase **)4)
 
@@ -173,7 +178,7 @@ void write_to_a2r(struct A314Device *dev, UBYTE type, UBYTE stream_id, UBYTE len
 	Enable();
 }
 
-static int probe_pi_interface_once()
+static int probe_pi_interface_once(struct A314Device *dev)
 {
 	int found = FALSE;
 
@@ -240,7 +245,12 @@ int probe_pi_interface(struct A314Device *dev)
 {
 	for (int i = 7; i >= 0; i--)
 	{
-		if (probe_pi_interface_once())
+		dev->clock_port_reg[REG_SRAM]    = (volatile UBYTE*)(CLOCK_PORT_ADDRESS + (REG_SRAM * CLOCK_PORT_STRIDE));
+		dev->clock_port_reg[REG_IRQ]     = (volatile UBYTE*)(CLOCK_PORT_ADDRESS + (REG_IRQ * CLOCK_PORT_STRIDE));
+		dev->clock_port_reg[REG_ADDR_LO] = (volatile UBYTE*)(CLOCK_PORT_ADDRESS + (REG_ADDR_LO * CLOCK_PORT_STRIDE));
+		dev->clock_port_reg[REG_ADDR_HI] = (volatile UBYTE*)(CLOCK_PORT_ADDRESS + (REG_ADDR_HI * CLOCK_PORT_STRIDE));
+
+		if (probe_pi_interface_once(dev))
 			return TRUE;
 
 		if (i == 0 || !delay_1s())
